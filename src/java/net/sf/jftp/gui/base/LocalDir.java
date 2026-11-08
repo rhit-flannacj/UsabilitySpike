@@ -1110,7 +1110,7 @@ public class LocalDir extends DirComponent implements ListSelectionListener,
 
         final File source = new File(path, entry.file).getAbsoluteFile();
         final FtpConnection destination = getUploadConnection();
-        if(destination == null || !canUpload(source))
+        if(destination == null || canUpload(source) == null)
         {
             return;
         }
@@ -1144,21 +1144,41 @@ public class LocalDir extends DirComponent implements ListSelectionListener,
     }
 
     /** Check the local source before opening a transfer. */
-    private boolean canUpload(File source)
+    private File canUpload(File source)
     {
+        if(source.isDirectory() && source.canRead()) {
+            try
+            {
+                String name = source.getName() + ".zip";
+                File zip = new File(path, name);
+
+                if(zip.exists()) {
+                    Log.debug("Please upload the .zip of this directory");
+                }
+
+                ZipFileCreator z = new ZipFileCreator(new String [] {source.getName() + "/"}, path, name);
+                System.out.println("HEEEEEERE");
+                return zip;
+            }
+            catch(Exception ex)
+            {
+                ex.printStackTrace();
+            }
+        }
         if(!source.isFile() || !source.canRead())
         {
             Log.debug("Cannot upload " + source.getName() +
                     ": select a readable file. Directories cannot be uploaded.");
-            return false;
+            return null;
         }
-        return true;
+        return source;
     }
 
     /** Upload one file through the current FTP connection. */
     private boolean uploadFile(File source, FtpConnection destination)
     {
-        if(!canUpload(source))
+        source = canUpload(source);
+        if(source == null)
         {
             return false;
         }
